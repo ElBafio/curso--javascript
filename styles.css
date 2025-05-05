@@ -1,0 +1,47 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+h1 {
+  text-align: center;
+}
+
+.section {
+  margin-bottom: 1.5rem;
+}
+
+label,
+input,
+button {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  background: #f4f4f4;
+  margin: 0.3rem 0;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+#resultado {
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+.positivo {
+  color: green;
+}
+
+.negativo {
+  color: red;
+}
