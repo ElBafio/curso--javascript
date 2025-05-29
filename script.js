@@ -1,6 +1,27 @@
-// Inicialización desde localStorage
-let ingresos = JSON.parse(localStorage.getItem("ingresos")) || [];
-let gastos = JSON.parse(localStorage.getItem("gastos")) || [];
+// Utils
+const formatter = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+});
+
+// Simular operaciones asincrónicas con Promises
+function guardarEnStorage(clave, datos) {
+  return new Promise((resolve) => {
+    localStorage.setItem(clave, JSON.stringify(datos));
+    resolve();
+  });
+}
+
+function obtenerDeStorage(clave) {
+  return new Promise((resolve) => {
+    const data = JSON.parse(localStorage.getItem(clave)) || [];
+    resolve(data);
+  });
+}
+
+// Estado
+let ingresos = [];
+let gastos = [];
 
 // Referencias DOM
 const ingresoInput = document.getElementById("ingreso-monto");
@@ -10,86 +31,98 @@ const listaGastos = document.getElementById("lista-gastos");
 const resultadoDiv = document.getElementById("resultado");
 
 // Renderizar listas
-function renderizar() {
-  listaIngresos.innerHTML = "";
-  listaGastos.innerHTML = "";
-
-  ingresos
-    .map((i) => i.toFixed(2))
-    .forEach((formato) => {
-      const li = document.createElement("li");
-      li.textContent = `$${formato}`;
-      listaIngresos.appendChild(li);
-    });
-
-  gastos
-    .map((g) => g.toFixed(2))
-    .forEach((formato) => {
-      const li = document.createElement("li");
-      li.textContent = `$${formato}`;
-      listaGastos.appendChild(li);
-    });
+function renderizarLista(lista, contenedor) {
+  contenedor.innerHTML = "";
+  lista.forEach((monto) => {
+    const li = document.createElement("li");
+    li.textContent = formatter.format(monto);
+    contenedor.appendChild(li);
+  });
 }
 
-// Guardar en localStorage
-function guardar() {
-  localStorage.setItem("ingresos", JSON.stringify(ingresos));
-  localStorage.setItem("gastos", JSON.stringify(gastos));
+function renderizarTodo() {
+  renderizarLista(ingresos, listaIngresos);
+  renderizarLista(gastos, listaGastos);
 }
 
-// Agregar ingreso
-
-document.getElementById("btn-agregar-ingreso").addEventListener("click", () => {
-  const val = parseFloat(ingresoInput.value);
-  if (!isNaN(val) && val > 0) {
-    ingresos.push(val);
-    guardar();
-    renderizar();
+// Agregar monto a una lista
+async function agregarMonto(tipo, valor) {
+  const val = parseFloat(valor);
+  if (isNaN(val) || val <= 0) {
+    alert("Por favor ingresa un número válido y mayor a 0.");
+    return;
   }
+
+  if (tipo === "ingreso") {
+    ingresos.push(val);
+    await guardarEnStorage("ingresos", ingresos);
+  } else {
+    gastos.push(val);
+    await guardarEnStorage("gastos", gastos);
+  }
+
+  renderizarTodo();
+}
+
+// Eventos de ingreso y gasto
+document.getElementById("btn-agregar-ingreso").addEventListener("click", () => {
+  agregarMonto("ingreso", ingresoInput.value);
   ingresoInput.value = "";
 });
 
-// Agregar gasto
-
 document.getElementById("btn-agregar-gasto").addEventListener("click", () => {
-  const val = parseFloat(gastoInput.value);
-  if (!isNaN(val) && val > 0) {
-    gastos.push(val);
-    guardar();
-    renderizar();
-  }
+  agregarMonto("gasto", gastoInput.value);
   gastoInput.value = "";
 });
 
 // Calcular saldo
-
 document.getElementById("btn-calcular").addEventListener("click", () => {
-  const validIngresos = ingresos.filter((i) => i > 0);
-  const validGastos = gastos.filter((g) => g > 0);
-
-  const totalIngresos = validIngresos.reduce((acc, cur) => acc + cur, 0);
-  const totalGastos = validGastos.reduce((acc, cur) => acc + cur, 0);
+  const totalIngresos = ingresos.reduce((acc, val) => acc + val, 0);
+  const totalGastos = gastos.reduce((acc, val) => acc + val, 0);
   const saldo = totalIngresos - totalGastos;
 
-  const hayGastoGrande = gastos.some((g) => g > totalIngresos);
-  const ingresoMayor = ingresos.find((i) => i === Math.max(...ingresos));
-
   resultadoDiv.textContent =
-    `Ingresos: $${totalIngresos.toFixed(2)} | ` +
-    `Gastos: $${totalGastos.toFixed(2)} | ` +
-    `Saldo: $${saldo.toFixed(2)}`;
+    `Ingresos: ${formatter.format(totalIngresos)} | ` +
+    `Gastos: ${formatter.format(totalGastos)} | ` +
+    `Saldo: ${formatter.format(saldo)}`;
   resultadoDiv.className = saldo >= 0 ? "positivo" : "negativo";
 
-  if (saldo > 0)
-    alert(`¡Buen trabajo! Tienes saldo positivo de $${saldo.toFixed(2)}`);
-  else if (saldo < 0)
-    alert(`¡Cuidado! Tienes saldo negativo de $${saldo.toFixed(2)}`);
-  else alert("Has terminado el mes sin saldo restante.");
+  if (saldo > 0) {
+    alert(`¡Buen trabajo! Tienes saldo positivo de ${formatter.format(saldo)}`);
+  } else if (saldo < 0) {
+    alert(`¡Cuidado! Tienes saldo negativo de ${formatter.format(saldo)}`);
+  } else {
+    alert("Has terminado el mes sin saldo restante.");
+  }
 
-  if (hayGastoGrande)
+  if (gastos.some((g) => g > totalIngresos)) {
     console.warn("Existe un gasto mayor que el total de ingresos.");
-  if (ingresoMayor) console.log(`Ingreso mayor registrado: $${ingresoMayor}`);
+  }
+
+  const ingresoMayor = Math.max(...ingresos);
+  if (ingresoMayor) {
+    console.log(`Ingreso mayor registrado: ${formatter.format(ingresoMayor)}`);
+  }
 });
 
-// Primera renderización
-renderizar();
+// Inicializar app
+async function init() {
+  ingresos = await obtenerDeStorage("ingresos");
+  gastos = await obtenerDeStorage("gastos");
+  renderizarTodo();
+}
+
+init();
+
+document.getElementById("btn-reiniciar").addEventListener("click", async () => {
+  if (confirm("¿Seguro que deseas reiniciar todos los datos?")) {
+    ingresos = [];
+    gastos = [];
+    await guardarEnStorage("ingresos", ingresos);
+    await guardarEnStorage("gastos", gastos);
+    renderizarTodo();
+    resultadoDiv.textContent = "";
+    resultadoDiv.className = "";
+    alert("Todos los datos han sido reiniciados.");
+  }
+});
